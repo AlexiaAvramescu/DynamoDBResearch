@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  # EDR Table Definition
+  RASAEDRTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "RASAEDRTable"
+      AttributeDefinitions:
+        - AttributeName: vehicle_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+        - AttributeName: event_type
+          AttributeType: S
+        - AttributeName: event_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: vehicle_id
+          KeyType: HASH   # Partition key
+        - AttributeName: timestamp
+          KeyType: RANGE  # Sort key
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      GlobalSecondaryIndexes:
+        - IndexName: EventTypeIndex
+          KeySchema:
+            - AttributeName: event_type
+              KeyType: HASH   # Partition key
+            - AttributeName: event_id
+              KeyType: RANGE  # Sort key
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+  # Radar Data Table Definition
+  RASARadarTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "RASARadarTable"
+      AttributeDefinitions:
+        - AttributeName: vehicle_id
+          AttributeType: "S"
+        - AttributeName: timestamp
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: vehicle_id
+          KeyType: HASH   # Partition key
+        - AttributeName: timestamp
+          KeyType: RANGE  # Sort key
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+Outputs:
+  EDRTableName:
+    Description: "Name of the EDR DynamoDB Table"
+    Value: !Ref RASAEDRTable
+
+  RadarTableName:
+    Description: "Name of the Radar Data DynamoDB Table"
+    Value: !Ref RASARadarTable
