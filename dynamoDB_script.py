@@ -3,7 +3,8 @@ import random
 import datetime
 from decimal import Decimal, getcontext
 from boto3.dynamodb.conditions import *
-import time
+import timeit
+import functools
 
 client = boto3.resource('dynamodb', region_name='eu-central-1')
 events_table = client.Table('RASAEDRTable')
@@ -13,6 +14,22 @@ DISTANCE_THRESHOLD = Decimal(str(0.3))
 CONFIDENCE_THRESHOLD = Decimal(str(0.8))
 VEHICLE_ID = []
 TIMESTAMPS = []
+
+
+def timer(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        print(f'Function {func.__name__} started')
+        start = timeit.default_timer()
+        for i in range(3):
+            func(*args, **kwargs)
+        end = timeit.default_timer()
+        average_time_taken = (end - start) / 3 
+        print(f'Function {func.__name__} ended with an average time of {average_time_taken}')    
+        print("===============================================")    
+    return wrapper
+
+
 
 def generate_timestamps(nitems):
     global TIMESTAMPS
@@ -101,7 +118,8 @@ def generate_events(nitems=20):
                 batch.put_item(Item=item)
 
 
-def extract_accidents(vehicle_id):
+@timer
+def filter_only(vehicle_id):
         #IndexName='EventTypeIndex',
     edr_events = events_table.query(
         KeyConditionExpression=Key('vehicle_id').eq(vehicle_id),
@@ -124,25 +142,51 @@ def extract_accidents(vehicle_id):
         if radar_data:
             accidents.append(event['vehicle_id'] + ' ' + radar_data[0]['timestamp'] + ' ' + radar_data[0]['object_type'])
 
-    return accidents
+
+@timer
+def eventTypeIndex_2Querries(vehicleID):
+    edr_events_ra = events_table.query(
+        IndexName='EventTypeIndex',
+        KeyConditionExpression=Key('event_type').eq('rapid acc') & Key('event_id').begins_with(vehicleID),
+    )['Items']
+    edr_events_rd = events_table.query(
+        IndexName='EventTypeIndex',
+        KeyConditionExpression=Key('event_type').eq('rapid dec') & Key('event_id').begins_with(vehicleID),
+    )['Items']
+
+    edr_events = edr_events_ra + edr_events_rd
+
+    accidents = []
+
+    for event in edr_events:
+        timestamp = event['timestamp'][:-1]
+        radar_data = radar_table.query(
+            KeyConditionExpression=Key('vehicle_id').eq(vehicleID) & Key('timestamp').begins_with(timestamp),
+            FilterExpression=(
+                    Attr('object_type').is_in(['vehicle', 'pedestrian', 'cyclist']) &
+                    Attr('confidence_level').gt(CONFIDENCE_THRESHOLD) &
+                    Attr('distance').lt(DISTANCE_THRESHOLD)
+            )
+        )['Items']
+
+        if radar_data:
+            accidents.append(event['vehicle_id'] + ' ' + radar_data[0]['timestamp'] + ' ' + radar_data[0]['object_type'])
+
 
 
 if __name__ == '__main__':
-    #print(VEHICLE_ID)
-    #print(TIMESTAMPS)
 
-    start = time.time()
-    print('Generating events...')
-    generate_vehicle_id(1)
-    generate_timestamps(100)
-    generate_events(1)
-    end = time.time()
-    print('Events generated in: ')
-    print(end - start)
 
-    # start = time.time()
-    # print(set(extract_accidents(str(7911))))
-    # print(time.time() - start)
+    vehicleID='1088'
+    filter_only(vehicleID)
+    eventTypeIndex_2Querries(vehicleID)
+
+
+
+
+
+
+
 
 
 
