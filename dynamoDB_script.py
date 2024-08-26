@@ -64,7 +64,7 @@ def generate_radar_reading(vehicleID, timestamp, number_of_readings, potential_a
 def generate_events(nitems=20):
     events_to_insert = []
     for i in range(nitems):
-        for j in range(nitems):
+        for j in range(100):
             event_type = EVENT_TYPES[random.randint(0, len(EVENT_TYPES) - 1)]
             events_to_insert.append({
               "timestamp": TIMESTAMPS[j],
@@ -90,7 +90,8 @@ def generate_events(nitems=20):
               "error_codes": ["P0101", "P0455"]
             })
 
-            radar_to_insert = generate_radar_reading(VEHICLE_ID[i], TIMESTAMPS[j], 100, True if event_type != 'drc event' else False)
+            radar_to_insert = generate_radar_reading(VEHICLE_ID[i], TIMESTAMPS[j], 800, True)
+            print(f'Created the {j}-th event')
             with radar_table.batch_writer() as batch:
                 for item in radar_to_insert:
                     batch.put_item(Item=item)
@@ -130,14 +131,18 @@ if __name__ == '__main__':
     #print(VEHICLE_ID)
     #print(TIMESTAMPS)
 
-    #start = time.time()
-    #generate_events(20)
-    #end = time.time()
-    #print(end - start)
-
     start = time.time()
-    print(set(extract_accidents(str(7911))))
-    print(time.time() - start)
+    print('Generating events...')
+    generate_vehicle_id(1)
+    generate_timestamps(100)
+    generate_events(1)
+    end = time.time()
+    print('Events generated in: ')
+    print(end - start)
+
+    # start = time.time()
+    # print(set(extract_accidents(str(7911))))
+    # print(time.time() - start)
 
 
 
