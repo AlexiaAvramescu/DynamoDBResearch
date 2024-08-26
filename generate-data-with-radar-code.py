@@ -22,14 +22,14 @@ OBJECT_TYPES = ["vehicle", "cyclist ", "pedestrian ", "other"]
 def timer(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        print(f'Function {func._name_} started')
+        print(f'Function {func.__name__} started')
         #average_time_taken = timeit.timeit(func(*args, **kwargs), number = 3) / 3
         start = timeit.default_timer()
         for i in range(3):
             func(*args, **kwargs)
         end = timeit.default_timer()
         average_time_taken = (end - start) / 3
-        print(f'Function {func._name_} ended with an average time of {average_time_taken}')
+        print(f'Function {func.__name__} ended with an average time of {average_time_taken}')
         print("===============================================")
     return wrapper
 
@@ -132,22 +132,22 @@ def generate_events(nitems=20):
 
 def event_query_with_filter(vehicle_id):
     edr_events = events_table.query(
-        IndexName='EventTypeIndex',
-        KeyConditionExpression=Key('event_id').eq(vehicle_id),
+        KeyConditionExpression=Key('vehicle_id').eq(str(vehicle_id)),
         FilterExpression=Attr('event_type').is_in(['rapid acc', 'rapid dec']),
     )['Items']
 
+    return edr_events
 
 def event_query_without_filter(vehicle_id):
     edr_events = events_table.query(
-        IndexName='EventTypeIndex',
-        KeyConditionExpression=Key('event_id').eq(vehicle_id) & Key('event_type').eq('rapid acc')
+        KeyConditionExpression=Key('vehicle_id').eq(str(vehicle_id)),
+        FilterExpression=Attr('event_type').eq('rapid dec'),
     )['Items']
 
 
     edr_events += events_table.query(
-        IndexName='EventTypeIndex',
-        KeyConditionExpression=Key('event_id').eq(vehicle_id) & Key('event_type').eq('rapid dec')
+        KeyConditionExpression=Key('vehicle_id').eq(str(vehicle_id)),
+        FilterExpression=Attr('event_type').eq('rapid acc'),
     )['Items']
 
     return edr_events
@@ -159,24 +159,44 @@ def extract_accidents(vehicle_id):
     accidents = []
 
     for event in edr_events:
-        IndexName = 'AccidentIndex',
         timestamp = event['timestamp'][:-1]
-        radar_code= f"{event['vehicleID']}#{event[timestamp][:-1]}"
-        radar_data = radar_table.query(KeyConditionExpression=Key('radar_code').begins_with(radar_code) & Key("is_accident").eq("1"))['Items']
-
+        radar_code= f"{event['vehicle_id']}#{event['timestamp'][:-1]}"
+        radar_data = radar_table.query(
+            IndexName='AccidentIndex',
+            KeyConditionExpression=Key('radar_code').eq(radar_code) & Key("is_accident").eq('1'))['Items']
         if radar_data:
             accidents.append(event['vehicle_id'] + ' ' + radar_data[0]['timestamp'] + ' ' + radar_data[0]['object_type'])
 
     return accidents
 
+@timer
+def extract_accidents_2(vehicle_id):
+    edr_events = event_query_without_filter(vehicle_id)
+
+    accidents = []
+
+    for event in edr_events:
+        timestamp = event['timestamp'][:-1]
+        radar_code= f"{event['vehicle_id']}#{event['timestamp'][:-1]}"
+        radar_data = radar_table.query(
+            IndexName='AccidentIndex',
+            KeyConditionExpression=Key('radar_code').eq(radar_code) & Key("is_accident").eq('1'))['Items']
+        if radar_data:
+            accidents.append(event['vehicle_id'] + ' ' + radar_data[0]['timestamp'] + ' ' + radar_data[0]['object_type'])
+
+    return accidents
 
 if __name__ == '__main__':
-    generate_timestamps(100)
-    generate_vehicle_id(1)
-    print(VEHICLE_ID)
-    print(TIMESTAMPS)
+    # generate_timestamps(100)
+    # generate_vehicle_id(1)
+    # print(VEHICLE_ID)
+    # print(TIMESTAMPS)
+    #
+    # start = time.time()
+    # generate_events(1)
+    # end = time.time()
+    # print(end - start)
 
-    start = time.time()
-    generate_events(1)
-    end = time.time()
-    print(end - start)
+    extract_accidents(1627)
+
+    extract_accidents_2(1627)
