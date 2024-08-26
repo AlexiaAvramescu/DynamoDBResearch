@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  # EDR Table Definition
+  RASAEDRTable2:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "RASAEDRTable2"
+      AttributeDefinitions:
+        - AttributeName: vehicle_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+        - AttributeName: event_type
+          AttributeType: S
+        - AttributeName: event_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: vehicle_id
+          KeyType: HASH   # Partition key
+        - AttributeName: timestamp
+          KeyType: RANGE  # Sort key
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      GlobalSecondaryIndexes:
+        - IndexName: EventTypeIndex
+          KeySchema:
+            - AttributeName: event_id
+              KeyType: HASH   # Partition key
+            - AttributeName: event_type
+              KeyType: RANGE  # Sort key
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 20
+            WriteCapacityUnits: 20
+
+  # Radar Data Table Definition
+  RASARadarTable2:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "RASARadarTable2"
+      AttributeDefinitions:
+        - AttributeName: vehicle_id
+          AttributeType: "S"
+        - AttributeName: timestamp
+          AttributeType: "S"
+        - AttributeName: radar_code
+          AttributeType: "S"
+        - AttributeName: is_accident
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: vehicle_id
+          KeyType: HASH   # Partition key
+        - AttributeName: timestamp
+          KeyType: RANGE  # Sort key
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      GlobalSecondaryIndexes:
+        - IndexName: AccidentIndex
+          KeySchema:
+            - AttributeName: radar_code
+              KeyType: HASH   # Partition key
+            - AttributeName: is_accident
+              KeyType: RANGE  # Sort key
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 20
+            WriteCapacityUnits: 20
+
+Outputs:
+  EDRTableName2:
+    Description: "Name of the EDR DynamoDB Table"
+    Value: !Ref RASAEDRTable2
+
+  RadarTableName2:
+    Description: "Name of the Radar Data DynamoDB Table"
+    Value: !Ref RASARadarTable2
